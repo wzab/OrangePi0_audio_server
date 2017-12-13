@@ -1,0 +1,41 @@
+#!/bin/sh
+#
+# Starts dropbear sshd.
+#
+
+# Allow a few customizations from a config file
+test -r /etc/default/dropbear && . /etc/default/dropbear
+
+start() {
+     /usr/bin/amixer cset iface=MIXER,name='Mic1 Capture Switch' 1
+     /usr/bin/amixer cset iface=MIXER,name='Mic1 Boost Volume' 90%
+     /usr/bin/amixer cset iface=MIXER,name='ADC Gain Capture Volume' 90%
+     (
+       cd /usr/bin
+       /usr/bin/ffserver -f /etc/ffserver.conf &
+     )
+}
+stop() {
+   killall ffserver
+}
+restart() {
+	stop
+	start
+}
+
+case "$1" in
+  start)
+  	start
+	;;
+  stop)
+  	stop
+	;;
+  restart|reload)
+  	restart
+	;;
+  *)
+	echo "Usage: $0 {start|stop|restart}"
+	exit 1
+esac
+
+exit $?

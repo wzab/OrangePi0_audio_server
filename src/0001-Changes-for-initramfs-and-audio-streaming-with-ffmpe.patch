@@ -1,0 +1,188 @@
+From 2d0e26b116cb98b82bb6d4c8c2c3ade040c50da1 Mon Sep 17 00:00:00 2001
+From: "Wojciech M. Zabolotny" <wzab01@gmail.com>
+Date: Tue, 12 Dec 2017 22:27:06 +0100
+Subject: [PATCH] Changes for initramfs and audio streaming with ffmpeg
+
+---
+ .../board/orangepi/orangepi-zero/boot.cmd          |  4 ++-
+ .../board/orangepi/orangepi-zero/genimage.cfg      |  7 +---
+ ...ARM-dts-orange-pi-zero-enable-sun8i-dwmac.patch | 28 ++++++++++++++++
+ ...M-dts-orange-pi-zero-enable-sun8i-dwmac-2.patch | 38 ++++++++++++++++++++++
+ ...M-dts-orange-pi-zero-enable-sun8i-dwmac-3.patch | 12 +++++++
+ .../0007-ARM-dts-orange-pi-zero-enable-codec.patch | 28 ++++++++++++++++
+ 6 files changed, 110 insertions(+), 7 deletions(-)
+ create mode 100644 buildroot-2017.11/board/orangepi/orangepi-zero/patches/linux/0004-ARM-dts-orange-pi-zero-enable-sun8i-dwmac.patch
+ create mode 100644 buildroot-2017.11/board/orangepi/orangepi-zero/patches/linux/0005-ARM-dts-orange-pi-zero-enable-sun8i-dwmac-2.patch
+ create mode 100644 buildroot-2017.11/board/orangepi/orangepi-zero/patches/linux/0006-ARM-dts-orange-pi-zero-enable-sun8i-dwmac-3.patch
+ create mode 100644 buildroot-2017.11/board/orangepi/orangepi-zero/patches/linux/0007-ARM-dts-orange-pi-zero-enable-codec.patch
+
+diff --git a/buildroot-2017.11/board/orangepi/orangepi-zero/boot.cmd b/buildroot-2017.11/board/orangepi/orangepi-zero/boot.cmd
+index 44f0885..d00c858 100644
+--- a/buildroot-2017.11/board/orangepi/orangepi-zero/boot.cmd
++++ b/buildroot-2017.11/board/orangepi/orangepi-zero/boot.cmd
+@@ -1,6 +1,8 @@
+ setenv fdt_high ffffffff
+ 
+-setenv bootargs console=ttyS0,115200 earlyprintk root=/dev/mmcblk0p2 rootwait
++setenv bootargs console=ttyS0,115200 earlyprintk
++
++setenv kernel_addr_r 0x40000000
+ 
+ fatload mmc 0 $kernel_addr_r zImage
+ fatload mmc 0 $fdt_addr_r sun8i-h2-plus-orangepi-zero.dtb
+diff --git a/buildroot-2017.11/board/orangepi/orangepi-zero/genimage.cfg b/buildroot-2017.11/board/orangepi/orangepi-zero/genimage.cfg
+index 017435f..266f8f2 100644
+--- a/buildroot-2017.11/board/orangepi/orangepi-zero/genimage.cfg
++++ b/buildroot-2017.11/board/orangepi/orangepi-zero/genimage.cfg
+@@ -8,7 +8,7 @@ image boot.vfat {
+ 			"boot.scr"
+ 		}
+ 	}
+-	size = 10M
++	size = 630M
+ }
+ 
+ image sdcard.img {
+@@ -28,9 +28,4 @@ image sdcard.img {
+ 		image = "boot.vfat"
+ 	}
+ 
+-	partition rootfs {
+-		partition-type = 0x83
+-		image = "rootfs.ext4"
+-		size = 512M
+-	}
+ }
+diff --git a/buildroot-2017.11/board/orangepi/orangepi-zero/patches/linux/0004-ARM-dts-orange-pi-zero-enable-sun8i-dwmac.patch b/buildroot-2017.11/board/orangepi/orangepi-zero/patches/linux/0004-ARM-dts-orange-pi-zero-enable-sun8i-dwmac.patch
+new file mode 100644
+index 0000000..4a6e64d
+--- /dev/null
++++ b/buildroot-2017.11/board/orangepi/orangepi-zero/patches/linux/0004-ARM-dts-orange-pi-zero-enable-sun8i-dwmac.patch
+@@ -0,0 +1,28 @@
++diff --git a/arch/arm/boot/dts/sun8i-h2-plus-orangepi-zero.dts b/arch/arm/boot/dts/sun8i-h2-plus-orangepi-zero.dts
++index 9e8b082c134f..dd3525a0f06a 100644
++--- a/arch/arm/boot/dts/sun8i-h2-plus-orangepi-zero.dts
+++++ b/arch/arm/boot/dts/sun8i-h2-plus-orangepi-zero.dts
++@@ -57,5 +57,7 @@ 
++ 	aliases {
++ 		serial0 = &uart0;
+++ 		/* ethernet0 is the H3 emac, defined in sun8i-h3.dtsi */
+++		ethernet0 = &emac;
++ 		ethernet1 = &xr819;
++ 	};
++ 
++@@ -103,6 +104,13 @@ 
++ 	status = "okay";
++ };
++ 
+++&emac {
+++	phy-handle = <&int_mii_phy>;
+++	phy-mode = "mii";
+++	allwinner,leds-active-low;
+++	status = "okay";
+++};
+++
++ &mmc0 {
++ 	pinctrl-names = "default";
++ 	pinctrl-0 = <&mmc0_pins_a>;
++
++
+diff --git a/buildroot-2017.11/board/orangepi/orangepi-zero/patches/linux/0005-ARM-dts-orange-pi-zero-enable-sun8i-dwmac-2.patch b/buildroot-2017.11/board/orangepi/orangepi-zero/patches/linux/0005-ARM-dts-orange-pi-zero-enable-sun8i-dwmac-2.patch
+new file mode 100644
+index 0000000..7490227
+--- /dev/null
++++ b/buildroot-2017.11/board/orangepi/orangepi-zero/patches/linux/0005-ARM-dts-orange-pi-zero-enable-sun8i-dwmac-2.patch
+@@ -0,0 +1,38 @@
++diff --git a/arch/arm/boot/dts/sunxi-h3-h5.dtsi b/arch/arm/boot/dts/sunxi-h3-h5.dtsi
++index c1bd09dab3da..d762098fc589 100644
++--- a/arch/arm/boot/dts/sunxi-h3-h5.dtsi
+++++ b/arch/arm/boot/dts/sunxi-h3-h5.dtsi
++@@ -391,6 +391,32 @@
++ 			clocks = <&osc24M>;
++ 		};
++ 
+++		emac: ethernet@1c30000 {
+++			compatible = "allwinner,sun8i-h3-emac";
+++			syscon = <&syscon>;
+++			reg = <0x01c30000 0x10000>;
+++			interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>;
+++			interrupt-names = "macirq";
+++			resets = <&ccu RST_BUS_EMAC>;
+++			reset-names = "stmmaceth";
+++			clocks = <&ccu CLK_BUS_EMAC>;
+++			clock-names = "stmmaceth";
+++			#address-cells = <1>;
+++			#size-cells = <0>;
+++			status = "disabled";
+++
+++			mdio: mdio {
+++				#address-cells = <1>;
+++				#size-cells = <0>;
+++				int_mii_phy: ethernet-phy@1 {
+++					compatible = "ethernet-phy-ieee802.3-c22";
+++					reg = <1>;
+++					clocks = <&ccu CLK_BUS_EPHY>;
+++					resets = <&ccu RST_BUS_EPHY>;
+++				};
+++			};
+++		};
+++
++ 		spi0: spi@01c68000 {
++ 			compatible = "allwinner,sun8i-h3-spi";
++ 			reg = <0x01c68000 0x1000>;
++
+diff --git a/buildroot-2017.11/board/orangepi/orangepi-zero/patches/linux/0006-ARM-dts-orange-pi-zero-enable-sun8i-dwmac-3.patch b/buildroot-2017.11/board/orangepi/orangepi-zero/patches/linux/0006-ARM-dts-orange-pi-zero-enable-sun8i-dwmac-3.patch
+new file mode 100644
+index 0000000..7a031bc
+--- /dev/null
++++ b/buildroot-2017.11/board/orangepi/orangepi-zero/patches/linux/0006-ARM-dts-orange-pi-zero-enable-sun8i-dwmac-3.patch
+@@ -0,0 +1,12 @@
++--- a/drivers/net/ethernet/stmicro/stmmac/dwmac-sun8i.c
+++++ b/drivers/net/ethernet/stmicro/stmmac/dwmac-sun8i.c
++@@ -979,7 +979,8 @@
++ }
++ 
++ static const struct of_device_id sun8i_dwmac_match[] = {
++-	{ }
+++	{ .compatible = "allwinner,sun8i-h3-emac",
+++		.data = &emac_variant_h3 },
++ };
++ MODULE_DEVICE_TABLE(of, sun8i_dwmac_match);
++ 
+diff --git a/buildroot-2017.11/board/orangepi/orangepi-zero/patches/linux/0007-ARM-dts-orange-pi-zero-enable-codec.patch b/buildroot-2017.11/board/orangepi/orangepi-zero/patches/linux/0007-ARM-dts-orange-pi-zero-enable-codec.patch
+new file mode 100644
+index 0000000..eccb0cc
+--- /dev/null
++++ b/buildroot-2017.11/board/orangepi/orangepi-zero/patches/linux/0007-ARM-dts-orange-pi-zero-enable-codec.patch
+@@ -0,0 +1,28 @@
++From 762860d6452c9def9b681ead9d7308721c2b2f34 Mon Sep 17 00:00:00 2001
++From: "Wojciech M. Zabolotny" <wzab01@gmail.com>
++Date: Sat, 9 Dec 2017 01:05:48 +0100
++Subject: [PATCH] added codec support
++
++---
++ arch/arm/boot/dts/sunxi-h3-h5.dtsi | 2 +-
++ 1 file changed, 1 insertion(+), 1 deletion(-)
++
++diff --git a/arch/arm/boot/dts/sunxi-h3-h5.dtsi b/arch/arm/boot/dts/sunxi-h3-h5.dtsi
++index d38282b..4c97c1a 100644
++--- a/arch/arm/boot/dts/sunxi-h3-h5.dtsi
+++++ b/arch/arm/boot/dts/sunxi-h3-h5.dtsi
++@@ -487,7 +487,10 @@
++ 			dmas = <&dma 15>, <&dma 15>;
++ 			dma-names = "rx", "tx";
++ 			allwinner,codec-analog-controls = <&codec_analog>;
++-			status = "disabled";
+++			allwinner,audio-routing = "Line Out", "LINEOUT",
+++				"MIC1", "Mic",
+++				"Mic", "MBIAS";
+++			status = "okay";
++ 		};
++ 
++ 		uart0: serial@01c28000 {
++-- 
++2.15.0
++
+-- 
+2.15.1
+
